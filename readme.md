@@ -34,4 +34,17 @@ class TestlaserOscillatorControl(TangoDeviceClient):
         layout_attr_0.addWidget(self.power_slider)
         self.add_attribute("power", "finesse", self.read_power, update_interval=0.3, single_shot=False,
                            get_info=True, attr_info_slot=self.power_slider.configureAttribute)
+	
+	def read_power(self, data):
+        root.debug("In read_power: {0}".format(data.value))
+        self.power_slider.setAttributeValue(data)
+		
+    def finesse_on(self):
+        self.devices["finesse"].command_inout_asynch("on", forget=True)
+
+    def finesse_off(self):
+        self.devices["finesse"].command_inout_asynch("off", forget=True)
+
+    def finesse_status(self, data):
+        self.finesse_commands.setStatus(data)
 ```
