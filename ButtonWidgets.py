@@ -9,6 +9,9 @@ import PyTango as pt
 from collections import OrderedDict
 from BaseWidgets import QTangoAttributeBase
 from LabelWidgets import QTangoStartLabel, QTangoEndLabel, QTangoAttributeNameLabel
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class QTangoComboBoxBase(QtWidgets.QComboBox, QTangoAttributeBase):
@@ -332,7 +335,7 @@ class QTangoWriteAttributeComboBox(QtWidgets.QWidget):
         if type(value) == pt.DeviceAttribute:
             if value.value is not None:
                 if self.writeValueInitialized is False:
-                    print 'Initializing write value'
+                    logger.info('Initializing write value')
                     self.writeValueInitialized = True
                     self.setAttributeWriteValue(value.w_value)
 
@@ -354,4 +357,4 @@ class QTangoWriteAttributeComboBox(QtWidgets.QWidget):
         self.writeValueComboBox.activated[str].connect(method)
 
     def onActivated(self, text):
-        print text
+        logger.debug(text)

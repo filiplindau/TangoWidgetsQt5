@@ -76,7 +76,8 @@ def to_precision(x, p):
         n /= 10.
         e += 1
 
-    m = "%.*g" % (p, n)
+    # m = "%.*g" % (p, n)
+    m = "{0:.{p}g}".format(n, p=p)
 
     if e < -2 or e >= p:
         out.append(m[0])
@@ -99,4 +100,68 @@ def to_precision(x, p):
         out.extend(["0"] * -(e + 1))
         out.append(m)
 
-    return "".join(out)
+    s = "".join(out)
+
+    return s
+
+
+def to_precision2(x, p=-1, w=-1, neg_compensation=False, return_prefix_string=True):
+    """
+    returns a string representation of x formatted with a precision of p OR width w
+
+    """
+    prefix_dict = {12: "T", 9: "G", 6: "M", 3: "k", 0: "", -3: "m", -6: "\u00b5", -9: "n", -12: "p", -15: "f", -18: "a"}
+    out = []
+    x = float(x)
+    if np.isnan(x):
+        return " " * (w-2) + "--"
+
+    s_neg = ""
+    if x < 0:
+        s_neg = "-"
+        x = -x
+    else:
+        if neg_compensation:
+            s_neg = " "
+        else:
+            s_neg = ""
+
+    if x == 0.0:
+        prefix = 0
+    elif x < 1.0:
+        prefix = int((np.log10(x) - 0.5) // 3)
+    else:
+        prefix = int((np.log10(x)) // 3)
+
+    if p > 0:
+        if p > w - 3:
+            p = w - 3
+    elif w > 3:
+        p = w - 4
+    else:
+        p = 0
+        w = 4
+
+    s_val = "{0:.{p}f} ".format(x * 10**(-prefix*3), p=p)
+    out.append(s_val)
+    if return_prefix_string:
+        out.append(prefix_dict[prefix*3])
+        # if prefix != 0:
+        #     w -= 1
+        s_prefix = prefix_dict[prefix*3]
+    else:
+        s_prefix = ""
+
+    s_len = len(s_val) + len(s_neg) + len(s_prefix)
+    n_space = w - s_len
+    if n_space < -1:        # Allow one extra since . is small
+        s_val = s_val[:n_space+1]
+        s = s_neg + s_val + s_prefix
+    else:
+        s = " " * n_space + s_neg + s_val + s_prefix
+
+    # s = "".join(out)
+    # n_space = w - len(s)
+    # s = " " * n_space + s
+
+    return s

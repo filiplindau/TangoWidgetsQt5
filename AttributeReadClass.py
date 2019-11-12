@@ -17,14 +17,26 @@ import PyTango as pt
 class AttributeClass(QtCore.QObject):
     attrSignal = QtCore.pyqtSignal(pt.device_attribute.DeviceAttribute)
     attrInfoSignal = QtCore.pyqtSignal(pt.AttributeInfoEx)
-    def __init__(self, name, device, minInterval=0.0, slot=None, eventType = pt.EventType.CHANGE_EVENT, getInfo = False, rateLimit = False):
+
+    def __init__(self, name, device, minInterval=0.0, slot=None, eventType = "thread",
+                 getInfo = False, rateLimit = False):
+        """
+
+        :param name:
+        :param device:
+        :param minInterval:
+        :param slot:
+        :param eventType: "thread": polling thread, "event": change event. pt.EventType.CHANGE_EVENT etc.
+        :param getInfo:
+        :param rateLimit:
+        """
         super(AttributeClass, self).__init__()
         self.name = name
         self.device = device
         self.interval = minInterval
         self.getInfoFlag = getInfo
 
-        if slot != None:
+        if slot is not None:
             self.attrSignal.connect(slot)
 
         self.lastRead = 0
@@ -35,10 +47,13 @@ class AttributeClass(QtCore.QObject):
         self.signalPending = False
         self.rateLimit = rateLimit
 
-        if eventType == None:
-            self.readThread = threading.Thread(name = self.name, target = self.attr_read)
+        if eventType is None or eventType == "thread":
+            self.readThread = threading.Thread(name=self.name, target=self.attr_read)
             self.stopThread = False
             self.startRead()
+        elif eventType == "event":
+            self.eventType = pt.EventType.CHANGE_EVENT
+            self.subscribe_event()
         else:
             self.subscribe_event()
 
@@ -46,26 +61,24 @@ class AttributeClass(QtCore.QObject):
         self.eventId = self.device.subscribe_event(self.name, self.eventType, self.attr_read_event, stateless = True)
 
     def unsubscribe_event(self):
-        if self.eventId != None:
+        if self.eventId is not None:
             self.device.unsubscribe_event(self.eventId)
 
     def attr_read_event(self, event):
-        if event.err == False:
+        if event.err is False:
             t = time.time()
             if (t-self.lastRead) > self.interval:
-                if self.rateLimit == True:
+                if self.rateLimit is True:
                     with self.attrLock:
                         self.attrSignal.emit(event.attr_value)
                 else:
                     self.attrSignal.emit(event.attr_value)
                 self.lastRead = t
 
-
-
     def attr_read(self):
         replyReady = True
-        while self.stopThread == False:
-            if self.getInfoFlag ==True:
+        while self.stopThread is False:
+            if self.getInfoFlag is True:
                 self.getInfoFlag = False
                 try:
                     self.attrInfo = self.device.get_attribute_config(self.name)
@@ -109,7 +122,7 @@ class AttributeClass(QtCore.QObject):
                     self.attr.value = None
                     self.attrSignal.emit(self.attr)
 
-                while replyReady == False and self.stopThread == False:
+                while replyReady is False and self.stopThread is False:
                     try:
                         self.attr = self.device.read_attribute_reply(id)
                         replyReady = True
@@ -132,7 +145,7 @@ class AttributeClass(QtCore.QObject):
                             self.attr.w_value = None
                             self.attrSignal.emit(self.attr)
 
-            if self.interval != None:
+            if self.interval is not None:
                 time.sleep(self.interval)
             else:
                 time.sleep(1)
@@ -140,7 +153,7 @@ class AttributeClass(QtCore.QObject):
         finalTimeout = 1.0  # Wait max 1 s
         finalStartTime = time.time()
         finalTimeoutFlag = False
-        while replyReady == False and finalTimeoutFlag == False:
+        while replyReady is False and finalTimeoutFlag is False:
             try:
                 self.attr = self.device.read_attribute_reply(id)
                 replyReady = True
@@ -159,7 +172,7 @@ class AttributeClass(QtCore.QObject):
                     self.attrSignal.emit(self.attr)
             if time.time()-finalStartTime > finalTimeout:
                 finalTimeoutFlag = True
-        if finalTimeoutFlag == False:
+        if finalTimeoutFlag is False:
             print self.name, '... Thread stopped'
         else:
             print self.name, '... Thread timed out'

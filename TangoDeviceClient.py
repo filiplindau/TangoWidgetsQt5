@@ -12,11 +12,11 @@ from AttributeReadThreadClass import AttributeClass
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.CRITICAL)
 
 
 class TangoDeviceClient(QtWidgets.QWidget):
-    def __init__(self, name, use_sidebar=False, use_bottombar=False, parent=None):
+    def __init__(self, name, use_sidebar=False, use_bottombar=False, call_setup_layout=True, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
 
         self.name = name
@@ -25,13 +25,15 @@ class TangoDeviceClient(QtWidgets.QWidget):
         self.attr_sizes = None
         self.frame_sizes = None
         self.colors = QTangoColors()
+        self.top_spacing = 60
 
         self.titlebar = None
         self.bottombar = None
         self.sidebar = None
         self.layout_data = None
 
-        self.setup_layout(use_sidebar, use_bottombar)
+        if call_setup_layout:
+            self.setup_layout(use_sidebar, use_bottombar)
 
         self.devices = dict()
         self.attributes = dict()
@@ -92,7 +94,7 @@ class TangoDeviceClient(QtWidgets.QWidget):
         layout_top.addLayout(layout_sidebar)
         layout_sidebar.addLayout(layout_content)
         layout_content.addWidget(self.titlebar)
-        layout_content.addSpacerItem(QtWidgets.QSpacerItem(20, 60, QtWidgets.QSizePolicy.Minimum,
+        layout_content.addSpacerItem(QtWidgets.QSpacerItem(20, self.top_spacing, QtWidgets.QSizePolicy.Minimum,
                                                            QtWidgets.QSizePolicy.Minimum))
         layout_content.addLayout(self.layout_data)
         if use_sidebar is True:
@@ -122,11 +124,11 @@ class TangoDeviceClient(QtWidgets.QWidget):
         self.devices[device_name] = PyTango.DeviceProxy(tango_name)
 
     def closeEvent(self, event):
-        for a in self.attributes.itervalues():
+        for a in self.attributes.values():
             logger.debug("In closeEvent: Stopping {0}".format(a.name))
             a.stop_read()
-        for a in self.attributes.itervalues():
-            a.readThread.join()
+        for a in self.attributes.values():
+            a.read_thread.join()
         event.accept()
 
 

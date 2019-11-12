@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 # noinspection PyAttributeOutsideInit
-class QTangoWriteAttributeDouble(QtWidgets.QWidget, QTangoAttributeBase):
+class QTangoWriteAttributeDouble(QTangoAttributeBase):
     def __init__(self, sizes=None, colors=None, precision=4, parent=None):
         QTangoAttributeBase.__init__(self, sizes, colors, parent)
 
@@ -83,7 +83,7 @@ class QTangoWriteAttributeDouble(QtWidgets.QWidget, QTangoAttributeBase):
         if type(value) == pt.DeviceAttribute:
             if value.value is not None:
                 if self.writeValueInitialized is False:
-                    print 'Initializing write value'
+                    logger.debug('Initializing write value')
                     self.writeValueInitialized = True
                     self.setAttributeWriteValue(value.w_value)
 

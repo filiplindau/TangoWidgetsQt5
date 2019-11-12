@@ -8,14 +8,17 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 import PyTango as pt
 import numpy as np
 import copy
+import codecs
 from BaseWidgets import QTangoAttributeBase, QTangoVSliderBase2, QTangoHSliderBase, QTangoHSliderBase2
 from BaseWidgets import QTangoHSliderBaseCompact
 from LabelWidgets import QTangoStartLabel, QTangoEndLabel, QTangoAttributeNameLabel, QTangoAttributeUnitLabel
 from LabelWidgets import QTangoReadAttributeLabel
 from EditWidgets import QTangoWriteAttributeLineEdit, QTangoReadAttributeSpinBox, QTangoWriteAttributeSpinBox
+
 import logging
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 # noinspection PyAttributeOutsideInit
@@ -38,9 +41,51 @@ class QTangoReadAttributeSlider(QTangoAttributeBase):
     def __init__(self, sizes=None, colors=None, parent=None,
                  slider_style=2, show_write_label=False):
         QTangoAttributeBase.__init__(self, sizes, colors, parent)
+        self.unit = None
+        self.prefixDict = {'k': 1e3, 'M': 1e6, 'G': 1e9, 'T': 1e12, 'P': 1e15,
+                           'm': 1e-3, 'u': 1e-6, 'n': 1e-9, 'p': 1e-12, 'f': 1e-15, 'c': 1e-2}
+        self.prefix = None
+        self.prefixFactor = 1.0
+
         self.setupLayout(slider_style, show_write_label)
 
     def setupLayout(self, slider_style=2, show_write_label=False):
+        if slider_style in [1, 2, 3]:
+            self.setup_horizontal(slider_style, show_write_label)
+        else:
+            self.setup_vertical(slider_style)
+
+    def setup_vertical(self, slider_style=3):
+        self.nameLabel = QTangoAttributeNameLabel(self.sizes, self.attrColors)
+        sizes_value = copy.copy(self.sizes)
+        sizes_value.barHeight *= 1.25
+
+        self.valueSlider = QTangoVSliderBase2(self.sizes, self.attrColors)
+        self.writeLabel = QTangoStartLabel(self.sizes, self.attrColors)
+        self.writeLabel.current_attr_color = self.attrColors.backgroundColor
+        self.writeLabel.setupLayout()
+
+        self.unitLabel = QTangoAttributeNameLabel(self.sizes, self.attrColors)
+
+        self.vSpacer = QtWidgets.QSpacerItem(20, self.sizes.barHeight, QtWidgets.QSizePolicy.Minimum,
+                                             QtWidgets.QSizePolicy.MinimumExpanding)
+
+        self.layout = QtWidgets.QVBoxLayout(self)
+        margin = int(self.sizes.barHeight / 10)
+        self.layout.setContentsMargins(margin, margin, margin, margin)
+        self.layout.setSpacing(self.sizes.barHeight / 10)
+
+        self.layout.addWidget(self.valueSlider)
+        self.layout.addWidget(self.nameLabel)
+        self.layout.addWidget(self.unitLabel)
+
+        self.setMaximumWidth(self.sizes.barWidth * 4)
+        self.setMinimumWidth(self.sizes.barWidth * 4)
+        self.setMaximumHeight(self.sizes.readAttributeHeight)
+        self.setMinimumHeight(self.sizes.readAttributeHeight)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+
+    def setup_horizontal(self, slider_style=2, show_write_label=False):
         self.startLabel = QTangoStartLabel(self.sizes, self.attrColors)
         self.endLabel = QTangoEndLabel(self.sizes, self.attrColors)
         self.nameLabel = QTangoAttributeNameLabel(self.sizes, self.attrColors)
@@ -120,7 +165,7 @@ class QTangoReadAttributeSlider(QTangoAttributeBase):
             if value.value is not None:
                 val = value.value
                 self.valueSpinbox.setValue(val)
-                self.valueSlider.setValue(val)
+                self.valueSlider.setValue(value)
         else:
             val = value
             self.valueSpinbox.setValue(val)
@@ -147,20 +192,72 @@ class QTangoReadAttributeSlider(QTangoAttributeBase):
         self.valueSpinbox.setSuffix(''.join((' ', self.attrInfo.unit)))
 
 
-# noinspection PyAttributeOutsideInit
 class QTangoAttributeSlider(QTangoAttributeBase):
     def __init__(self, sizes=None, colors=None, parent=None,
                  slider_style=2, show_write_widget=False):
-        logger.debug("QTangoAttributeSlider.__init__")
         QTangoAttributeBase.__init__(self, sizes, colors, parent)
         self.newValueSignal = None
 
-        self.setupLayout(slider_style, show_write_widget)
+        self.nameLabel = None
+        self.startLabel = None
+        self.endLabel = None
+        self.unitLabel = None
+        self.valueLabel = None
 
         self.writeValueInitialized = False
         self.is_write_widget = show_write_widget
 
+        self.unit = None
+        self.prefixDict = {'k': 1e3, 'M': 1e6, 'G': 1e9, 'T': 1e12, 'P': 1e15,
+                           'm': 1e-3, 'u': 1e-6, 'n': 1e-9, 'p': 1e-12, 'f': 1e-15, 'c': 1e-2}
+        self.prefix = None
+        self.prefixFactor = 1.0
+
+        # self.setup_horizontal(1, False)
+        self.setupLayout(slider_style, show_write_widget)
+
     def setupLayout(self, slider_style=2, show_write_widget=False):
+        if slider_style in [1, 2, 3]:
+            self.setup_horizontal(slider_style, show_write_widget)
+        else:
+            self.setup_vertical(slider_style)
+
+    def setup_vertical(self, slider_style=4):
+        self.nameLabel = QTangoAttributeNameLabel(self.sizes, self.attrColors)
+        sizes_value = copy.copy(self.sizes)
+        sizes_value.barHeight *= 1.25
+
+        self.startLabel = QTangoStartLabel(self.sizes, self.attrColors)
+        self.endLabel = QTangoEndLabel(self.sizes, self.attrColors)
+        self.unitLabel = QTangoAttributeUnitLabel(self.sizes, self.attrColors)
+        self.valueLabel = QTangoReadAttributeLabel(self.sizes, self.attrColors)
+
+        self.valueSlider = QTangoVSliderBase2(self.sizes, self.attrColors)
+        self.writeLabel = QTangoStartLabel(self.sizes, self.attrColors)
+        self.writeLabel.current_attr_color = self.attrColors.backgroundColor
+        self.writeLabel.setupLayout()
+
+        # self.unitLabel = QTangoAttributeNameLabel(self.sizes, self.attrColors)
+
+        self.vSpacer = QtWidgets.QSpacerItem(20, self.sizes.barHeight, QtWidgets.QSizePolicy.Minimum,
+                                             QtWidgets.QSizePolicy.MinimumExpanding)
+
+        self.layout = QtWidgets.QVBoxLayout(self)
+        margin = int(self.sizes.barHeight / 10)
+        self.layout.setContentsMargins(margin, margin, margin, margin)
+        self.layout.setSpacing(self.sizes.barHeight / 10)
+
+        self.layout.addWidget(self.valueSlider)
+        self.layout.addWidget(self.nameLabel)
+        self.layout.addWidget(self.unitLabel)
+
+        self.setMaximumWidth(self.sizes.barWidth * 5)
+        self.setMinimumWidth(self.sizes.barWidth * 5)
+        self.setMaximumHeight(self.sizes.readAttributeHeight)
+        self.setMinimumHeight(self.sizes.readAttributeHeight)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+
+    def setup_horizontal(self, slider_style=2, show_write_widget=False):
         logger.debug("QTangoAttributeSlider.setupLayout")
         self.startLabel = QTangoStartLabel(self.sizes, self.attrColors)
         self.endLabel = QTangoEndLabel(self.sizes, self.attrColors)
@@ -208,8 +305,8 @@ class QTangoAttributeSlider(QTangoAttributeBase):
         self.layout.addLayout(self.layoutGrid)
         self.layout.addWidget(self.endLabel)
 
-        self.setMaximumWidth(self.sizes.readAttributeWidth)
-        self.setMinimumWidth(self.sizes.readAttributeWidth)
+        self.setMaximumWidth(self.sizes.readAttributeWidth * 1.2)
+        self.setMinimumWidth(self.sizes.readAttributeWidth * 1.2)
         self.setMaximumHeight(self.sizes.barHeight * 2.2)
         self.setMaximumHeight(self.sizes.barHeight * 3.0)
         self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
@@ -219,24 +316,50 @@ class QTangoAttributeSlider(QTangoAttributeBase):
     def attributeName(self):
         return str(self.nameLabel.text())
 
-    # @QtCore.pyqtSignature('setAttributeName(QString)')
     def setAttributeName(self, a_name, a_unit=None):
         self.nameLabel.setText(a_name)
         if a_unit is not None:
-            self.unitLabel.setText(a_unit)
+            self.setUnit(a_unit)
+        logger.info("Setting name label to {0}".format(self.nameLabel.text()))
         self.update()
+
+    def setUnit(self, unit):
+        self.unit = codecs.raw_unicode_escape_decode(unit)[0]
+        if self.unit is not None:
+            if self.prefix is not None:
+                unit_str = "{0}{1}".format(self.prefix, self.unit)
+            else:
+                unit_str = self.unit
+            logger.info("Setting unit {0}".format(unit_str))
+            self.unitLabel.setText(unit_str)
+
+            try:
+                self.valueSlider.setUnit(unit_str)
+            except AttributeError:
+                # Slider had no unit
+                pass
+
+    def setPrefix(self, prefix):
+        try:
+            self.prefixFactor = self.prefixDict[prefix]
+            self.prefix = prefix
+            self.valueLabel.setPrefix(prefix)
+            self.valueSlider.setPrefix(prefix)
+            self.setUnit(self.unit)
+        except KeyError:
+            self.prefix = None
+            self.prefixFactor = 1.0
 
     def setAttributeValue(self, data):
         if type(data) == pt.DeviceAttribute:
-            logger.debug("QTangoAttributeSlider::setAttributeValue: quality {0}".format(data.quality))
+            # logger.debug("QTangoAttributeSlider::setAttributeValue: quality {0}".format(data.quality))
             self.startLabel.setQuality(data.quality)
             self.endLabel.setQuality(data.quality)
             self.nameLabel.setQuality(data.quality)
             self.unitLabel.setQuality(data.quality)
             if data.value is not None:
-                logger.debug("QTangoAttributeSlider::setAttributeValue: setValue spinbox")
                 self.valueLabel.setValue(data)
-                logger.debug("QTangoAttributeSlider::setAttributeValue: setValue slider")
+                # logger.debug("QTangoAttributeSlider::setAttributeValue: setValue slider {0}".format(data.value))
                 self.valueSlider.setValue(data)
                 if self.is_write_widget is True:
                     if self.writeValueInitialized is False:
@@ -270,7 +393,7 @@ class QTangoAttributeSlider(QTangoAttributeBase):
         self.valueSlider.setSliderLimits(min_limit, max_limit)
 
     def updateWriteValue(self):
-        logging.debug("In QTangoAttributeSlider.updateWriteValue: "
+        logger.debug("In QTangoAttributeSlider.updateWriteValue: "
                       "updating slider to {0}".format(self.writeValueEdit.value()))
         self.valueSlider.setWriteValue(self.writeValueEdit.value())
         self.update()
@@ -295,14 +418,7 @@ class QTangoAttributeSlider(QTangoAttributeBase):
         logger.debug("min_warning {0}, max_warning {1}".format(min_warning, max_warning))
         self.setAttributeWarningLimits((min_warning, max_warning))
         logger.debug("unit {0}".format(self.attrInfo.unit))
-        try:
-            self.valueSlider.setUnit(self.attrInfo.unit)
-        except AttributeError:
-            # Slider had no unit
-            pass
-
-        self.unit = self.attrInfo.unit
-        self.unitLabel.setText(self.unit)
+        self.setUnit(self.attrInfo.unit)
 
         self.valueLabel.data_format = attr_info.format
         if self.is_write_widget is True:
@@ -479,7 +595,7 @@ class QTangoWriteAttributeSliderV(QTangoAttributeSlider):
             if data.value is not None:
                 self.valueSlider.setValue(data)
                 if self.writeValueInitialized is False:
-                    print 'Initializing write value'
+                    logger.debug("Initializing write value")
                     self.writeValueInitialized = True
                     self.setAttributeWriteValue(data.w_value)
 
@@ -514,7 +630,7 @@ class QTangoWriteAttributeSliderV(QTangoAttributeSlider):
                 == QtGui.QValidator.Acceptable:
             self.valueSlider.setWriteValue(np.double(self.writeValueLineEdit.text()))
         self.update()
-        print 'updating slider to ', self.writeValueLineEdit.text()
+        logger.debug("updating slider to {0}".format(self.writeValueLineEdit.text()))
 
     def configureAttribute(self, attr_info):
         QTangoAttributeBase.configureAttribute(self, attr_info)

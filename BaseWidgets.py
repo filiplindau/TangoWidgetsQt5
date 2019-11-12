@@ -11,8 +11,10 @@ import PyTango as pt
 import pyqtgraph as pg
 from ColorDefinitions import QTangoColors, QTangoSizes
 import logging
+from Utils import to_precision2
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class QTangoAttributeBase(QtWidgets.QWidget):
@@ -38,6 +40,11 @@ class QTangoAttributeBase(QtWidgets.QWidget):
         self.current_attr_color = self.attrColors.unknownColor
 
         self.attrInfo = None
+
+        self.prefixDict = {'k': 1e-3, 'M': 1e-6, 'G': 1e-9, 'T': 1e-12, 'P': 1e-15,
+                           'm': 1e3, '\u00b5': 1e6, 'n': 1e9, 'p': 1e12, 'f': 1e15, 'c': 1e2}
+        self.prefix = None
+        self.prefixFactor = 1.0
 
     def setState(self, state, use_background_color=False):
         if type(state) == pt.DeviceAttribute:
@@ -152,6 +159,15 @@ class QTangoAttributeBase(QtWidgets.QWidget):
 
     def configureAttribute(self, attr_info):
         self.attrInfo = attr_info
+
+    def setPrefix(self, prefix):
+        try:
+            self.prefixFactor = self.prefixDict[prefix]
+            self.prefix = prefix
+        except KeyError:
+            self.prefix = None
+            self.prefixFactor = 1.0
+        logger.info("Setting prefix {0}, factor {1}".format(prefix, self.prefixFactor))
 
 
 # noinspection PyAttributeOutsideInit
@@ -672,8 +688,8 @@ class QTangoVSliderBase2(QtWidgets.QSlider, QTangoAttributeBase):
         self.warnLow = 0.1
 
         self.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.setMaximumWidth(self.sizes.barWidth * 4.0 - 2)
-        self.setMinimumWidth(self.sizes.barWidth * 4.0 - 2)
+        self.setMaximumWidth(self.sizes.barWidth * 5.0 - 2)
+        self.setMinimumWidth(self.sizes.barWidth * 5.0 - 2)
 
     def paintEvent(self, e):
         qp = QtGui.QPainter()
@@ -692,9 +708,13 @@ class QTangoVSliderBase2(QtWidgets.QSlider, QTangoAttributeBase):
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
 
         # Strings to draw
-        s_val = ''.join(("{:.4g}".format(self.attrValue), " ", self.unit))
-        s_min = "{:.4g}".format(self.attrMinimum)
-        s_max = "{:.4g}".format(self.attrMaximum)
+        # s_val = ''.join(("{:.4g}".format(self.attrValue), " ", self.unit))
+        # s_val = "{0:.4g} {1}{2}".format(self.attrValue, self.prefix, self.unit)
+        # s_min = "{:.4g}".format(self.attrMinimum)
+        # s_max = "{:.4g}".format(self.attrMaximum)
+        s_val = u"{0}{1}".format(to_precision2(self.attrValue, p=2, w=5, neg_compensation=False), self.unit)
+        s_min = "{0}".format(to_precision2(self.attrMinimum, p=0, w=4, neg_compensation=False, return_prefix_string=True))
+        s_max = "{0}".format(to_precision2(self.attrMaximum, p=0, w=4, neg_compensation=False, return_prefix_string=True))
 
         # Width of value text:
         # s_val_width = QtGui.QFontMetricsF(font).width(s_val)
@@ -707,7 +727,8 @@ class QTangoVSliderBase2(QtWidgets.QSlider, QTangoAttributeBase):
 
         start_x = 0.0  # Position of vertical line
         line_w = w / 8.0  # Width of vertical line
-        arrow_w = s_val_height / 2.0
+        # arrow_w = s_val_height / 2.0
+        arrow_w = 1.25 * s_val_height / 2.0
         write_w = 6.0
 
         # Vertical position of scale text
@@ -887,6 +908,7 @@ class QTangoVSliderBase2(QtWidgets.QSlider, QTangoAttributeBase):
                 val = 0.0
         else:
             val = value
+        # self.attrValue = val * self.prefixFactor
         self.attrValue = val
         self.update()
 

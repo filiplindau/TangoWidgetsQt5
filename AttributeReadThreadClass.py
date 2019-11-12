@@ -14,6 +14,7 @@ import PyTango as pt
 import logging
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.CRITICAL)
 
 
 # noinspection PyAttributeOutsideInit
@@ -62,6 +63,7 @@ class AttributeClass(QtCore.QObject):
         self.start_read()
 
     def attr_read(self):
+        logger.debug("Entering attr_read for \"{0}\"".format(self.name))
         reply_ready = True
         while self.stop_thread_flag is False:
             if self.pause_read_flag is True:
@@ -73,39 +75,43 @@ class AttributeClass(QtCore.QObject):
                         self.attr_info = self.device.get_attribute_config(self.name)
                         self.attrInfoSignal.emit(self.attr_info)
 
-                    except pt.DevFailed, e:
-                        if e[0].reason == 'API_DeviceTimeOut':
-                            logging.debug('AttrInfo Timeout')
+                    except pt.DevFailed as e:
+                        if e.args[0].reason == 'API_DeviceTimeOut':
+                            logger.debug('AttrInfo Timeout')
                         else:
-                            logging.debug("{0} attrinfo error: {1}".format(self.name, e[0].reason))
+                            logger.debug("{0} attrinfo error: {1}".format(self.name, e.args[0].reason))
                         self.attr_info = pt.AttributeInfoEx()
                         self.attrInfoSignal.emit(self.attr_info)
-                    except Exception, e:
-                        logging.debug("{0} recovering from attrInfo error {1}".format(self.name, str(e)))
+                    except Exception as e:
+                        logger.debug("{0} recovering from attrInfo error {1}".format(self.name, str(e)))
                         self.attr_info = pt.AttributeInfoEx()
                         self.attrInfoSignal.emit(self.attr_info)
 
                 t = time.time()
 
-                if t-self.last_read_time > self.interval:
+                if self.interval is None:
+                    dt = 0
+                else:
+                    dt = self.interval
+                if t-self.last_read_time > dt:
                     self.last_read_time = t
                     try:
                         reply_id = self.device.read_attribute_asynch(self.name)
 
                         reply_ready = False
-                    except pt.DevFailed, e:
-                        if e[0].reason == 'API_DeviceTimeOut':
+                    except pt.DevFailed as e:
+                        if e.args[0].reason == 'API_DeviceTimeOut':
                             logger.debug("Timeout")
                         else:
-                            logger.debug("{0} read_attribute_asynch error: {1}".format(self.name, e[0].reason))
+                            logger.debug("{0} read_attribute_asynch error: {1}".format(self.name, e.args[0].reason))
                         self.attr = pt.DeviceAttribute()
                         self.attr.quality = pt.AttrQuality.ATTR_INVALID
                         self.attr.value = None
                         self.attr.w_value = None
                         self.attrSignal.emit(self.attr)
 
-                    except Exception, e:
-                        print self.name, ' recovering from ', str(e)
+                    except Exception as e:
+                        logger.error("{0} recovering from {1}".format(self.name, str(e)))
                         self.attr = pt.DeviceAttribute()
                         self.attr.quality = pt.AttrQuality.ATTR_INVALID
                         self.attr.value = None
@@ -115,13 +121,15 @@ class AttributeClass(QtCore.QObject):
                         try:
                             self.attr = self.device.read_attribute_reply(reply_id)
                             reply_ready = True
+                            # logger.debug("{0} Reply: {1}".format(self.name, self.attr))
                             self.attrSignal.emit(self.attr)
                             # Read only once if interval = None:
                             if self.interval is None:
                                 self.stop_thread_flag = True
                                 self.interval = 0.0
-                        except pt.DevFailed, e:
-                            if e[0].reason == 'API_AsynReplyNotArrived':
+                        except pt.DevFailed as e:
+                            logger.info("Exception e: {0}".format(e))
+                            if isinstance(e, pt.AsynReplyNotArrived):
                                 time.sleep(0.1)
                             else:
                                 reply_ready = True
@@ -135,7 +143,7 @@ class AttributeClass(QtCore.QObject):
                 if self.interval is not None:
                     time.sleep(self.interval)
                 else:
-                    time.sleep(1)
+                    time.sleep(0.2)
         logger.debug("{0} waiting for final reply".format(self.name))
         final_timeout = 1.0  # Wait max 1 s
         final_start_time = time.time()
@@ -145,8 +153,8 @@ class AttributeClass(QtCore.QObject):
                 self.attr = self.device.read_attribute_reply(reply_id)
                 reply_ready = True
                 self.attrSignal.emit(self.attr)
-            except Exception, e:
-                if e[0].reason == 'API_AsynReplyNotArrived':
+            except Exception as e:
+                if e.args[0].reason == 'API_AsynReplyNotArrived':
                     time.sleep(0.1)
                 else:
                     reply_ready = True
@@ -188,6 +196,7 @@ class AttributeClass(QtCore.QObject):
             self.read_thread.join(3.0)
         self.stop_thread_flag = False
         self.pause_read_flag = False
+        self.read_thread = threading.Thread(name=self.name, target=self.attr_read)
         self.read_thread.start()
 
     def pause_read(self):

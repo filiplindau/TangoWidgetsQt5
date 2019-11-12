@@ -353,7 +353,7 @@ class QTangoReadAttributeLabel(QtWidgets.QLabel, QTangoAttributeBase):
         else:
             val = value
         if val is not None:
-            text = self.textFromValue(val)
+            text = self.textFromValue(val * self.prefixFactor)
             QtWidgets.QLabel.setText(self, text)
         else:
             QtWidgets.QLabel.setText(self, "0.0")
@@ -371,6 +371,8 @@ class QTangoReadAttributeLabel(QtWidgets.QLabel, QTangoAttributeBase):
     def textFromValue(self, value):
         logger.debug("QTangoReadAttributeLabel::textFromValue: value {0}".format(value))
         # text = "".join((to_precision(value, self.precision), " ", self.suffix))
+        if self.data_format[1:] == "d":
+            value = int(value)
         text = "".join(("{0:", self.data_format[1:], "} {1}")).format(value, self.suffix)
         return text
 

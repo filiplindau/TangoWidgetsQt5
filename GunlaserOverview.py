@@ -32,7 +32,7 @@ class TestDeviceClient(TangoDeviceClient):
 
     """
     def __init__(self):
-        TangoDeviceClient.__init__(self, "Finesse", use_sidebar=False, use_bottombar=True)
+        TangoDeviceClient.__init__(self, "Gunlaser Overview", use_sidebar=False, use_bottombar=True)
         self.power_slider = QTangoAttributeSlider(self.attr_sizes, self.colors, show_write_widget=True)
         self.power_slider.setSliderLimits(0, 6)
         self.power_slider.setAttributeName("Power")
@@ -98,7 +98,6 @@ class TestDeviceClient(TangoDeviceClient):
 
     def finesse_status(self, data):
         self.finesse_commands.setStatus(data)
-
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

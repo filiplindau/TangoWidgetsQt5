@@ -130,7 +130,7 @@ class QTangoSideBar(QtWidgets.QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(int(self.sizes.barHeight / 10))
         self.layout.addWidget(self.startLabel)
-        for cmdButton in self.cmdButtons.itervalues():
+        for cmdButton in self.cmdButtons.values():
             self.layout.addWidget(cmdButton)
         self.layout.addWidget(self.endLabel)
 
@@ -224,3 +224,58 @@ class QTangoHorizontalBar(QtWidgets.QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.addWidget(self.startLabel)
         self.layout.addWidget(self.endLabel)
+
+
+class QTangoContentWidget(QtWidgets.QWidget):
+    def __init__(self, name, horizontal=True, sizes=None, colors=None, parent=None):
+        QtGui.QWidget.__init__(self, parent)
+        if colors is None:
+            self.attrColors = QTangoColors()
+        else:
+            self.attrColors = colors
+        if sizes is None:
+            self.sizes = QTangoSizes()
+        else:
+            self.sizes = sizes
+        self.layout = None
+        self.name = name
+        self.title_bar = None
+        self.side_bar = None
+        self.layout_bar = None
+        self.layout_content = None
+        self.setupLayout(horizontal)
+
+    def setupLayout(self, horizontal):
+        colors = self.attrColors
+        colors.primaryColor0 = colors.secondaryColor0
+        self.title_bar = QTangoTitleBar(self.name, sizes=self.sizes, colors=colors)
+        # self.title_bar.setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        self.side_bar = QTangoSideBar(colors=self.attrColors, sizes=self.sizes)
+        self.layout = QtGui.QVBoxLayout()
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(0)
+        self.setLayout(self.layout)
+        self.setMinimumHeight(self.sizes.readAttributeHeight * 1.2)
+        self.layout_bar = QtGui.QHBoxLayout()
+        if horizontal:
+            self.layout_content = QtGui.QHBoxLayout()
+        else:
+            self.layout_content = QtGui.QVBoxLayout()
+        self.layout_content.setSpacing(self.sizes.barHeight * 2)
+        self.layout_content.setContentsMargins(self.sizes.barHeight * 1.25,
+                                               self.sizes.barHeight * 1.25,
+                                               self.sizes.barHeight,
+                                               self.sizes.barHeight)
+        self.layout.addWidget(self.title_bar)
+        self.layout.addLayout(self.layout_bar)
+        self.layout_bar.addWidget(self.side_bar)
+        self.layout_bar.addLayout(self.layout_content)
+
+    def addLayout(self, layout):
+        self.layout_content.addLayout(layout)
+
+    def addWidget(self, widget):
+        self.layout_content.addWidget(widget)
+
+    def addSpacerItem(self, spaceritem):
+        self.layout_content.addSpacerItem(spaceritem)

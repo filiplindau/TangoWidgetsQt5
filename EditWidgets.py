@@ -537,7 +537,7 @@ class QTangoWriteAttributeSpinBox2(QtWidgets.QDoubleSpinBox):
         self.setValue(current_value + 10 ** pos * steps)
 
     def changeStep(self):
-        logging.debug("In QTangoWriteAttributeSpinBox2.changeStep")
+        logger.debug("In QTangoWriteAttributeSpinBox2.changeStep")
         # Check if the last key was return, then the cursor
         # shouldn't change
         if self.lastKey != QtCore.Qt.Key_Return:
