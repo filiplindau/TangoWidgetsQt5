@@ -12,6 +12,7 @@ from ColorDefinitions import QTangoColors, QTangoSizes
 import numpy as np
 import time
 import sys
+import threading
 from collections import OrderedDict
 from BaseWidgets import QTangoAttributeBase
 from Utils import to_precision2
@@ -58,7 +59,7 @@ class QTangoStripTool(QTangoAttributeBase):
                       adding: 2px;
                       margin: 1px;
                       color: {0};
-                      background-color: {1};
+                      background-color: #555500;
                       }}""".format(self.attrColors.secondaryColor0, self.attrColors.backgroundColor)
         self.setStyleSheet(st)
         legend_item.clicked.emit()
@@ -72,12 +73,20 @@ class QTangoStripTool(QTangoAttributeBase):
         legend_item.clicked.connect(self.set_curve_focus)
         self.legend_widget.addItem(legend_item)
 
+    def add_point(self, data, curve_index=0, auto_range=True):
+        self.plot_widget.addPoint(data, curve_index, auto_range)
+        if auto_range:
+            legend_item = self.legend_widget.get_item(curve_index)
+            axis_range = self.plot_widget.get_curve_range(curve_index)
+            legend_item.set_range(axis_range[1])
+
     def set_data(self, x_data, y_data, curve_index=0, auto_range=True):
         logger.debug("{0}: curve_index {1}".format(self.__class__, curve_index))
         self.plot_widget.setData(x_data, y_data, curve_index, auto_range)
-        legend_item = self.legend_widget.get_item(curve_index)
-        axis_range = self.plot_widget.get_curve_range(curve_index)
-        legend_item.set_range(axis_range[1])
+        if auto_range:
+            legend_item = self.legend_widget.get_item(curve_index)
+            axis_range = self.plot_widget.get_curve_range(curve_index)
+            legend_item.set_range(axis_range[1])
 
     def set_curve_focus(self):
         s = self.sender()
@@ -110,10 +119,15 @@ class QTangoStripTool(QTangoAttributeBase):
             lay = QtWidgets.QHBoxLayout()
             lay.addWidget(self.plot_widget)
             lay.addWidget(self.legend_widget)
+            w = self.width()
+            self.legend_widget.setMaximumWidth(200)
+            self.legend_widget.setMinimumWidth(200)
         else:
             lay = QtWidgets.QHBoxLayout()
             lay.addWidget(self.legend_widget)
             lay.addWidget(self.plot_widget)
+            self.legend_widget.setMaximumWidth(200)
+            self.legend_widget.setMinimumWidth(200)
 
         self.setLayout(lay)
         self.legend_widget.set_position(position)
@@ -178,6 +192,7 @@ class QTangoStripToolLegendItem(QtWidgets.QFrame, QTangoAttributeBase):
         lay.addWidget(self.range_label)
         lay.addWidget(self.unit_label)
         self.setLayout(lay)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         self.update_stylesheet()
 
     def update_stylesheet(self, new_color=None, new_width=None):
@@ -193,8 +208,10 @@ class QTangoStripToolLegendItem(QtWidgets.QFrame, QTangoAttributeBase):
                       border-color: {0};
                       border-style: solid;
                       border-radius: 0px;
-                      padding: 2px;
-                      margin: 1px;
+                      padding-left: {4}px;
+                      padding-right: {4}px;
+                      padding-top: 1px;
+                      padding-bottom: 1px;
                       color: {0};
                       background-color: {1};
                       }}
@@ -211,7 +228,7 @@ class QTangoStripToolLegendItem(QtWidgets.QFrame, QTangoAttributeBase):
                 QLabel:hover {{
                       border-color: {0};
                       }}
-                      """.format(self.color, self.attrColors.backgroundColor, 1, self.border_width*4)
+                      """.format(self.color, self.attrColors.backgroundColor, 1, self.border_width*4, 8 - self.border_width*4)
         self.setStyleSheet(st)
         self.update()
 
@@ -240,8 +257,7 @@ class QTangoStripToolLegendWidget(QTangoAttributeBase):
         self.position = position
         self.items = OrderedDict()
         self.item_name_list = list()
-        lay = QtWidgets.QGridLayout()
-        self.setLayout(lay)
+        self.legend_gridlayout = QtWidgets.QGridLayout()
         self.max_col = None
         self.set_position(position)
         self.current_focus_item = None
@@ -252,7 +268,8 @@ class QTangoStripToolLegendWidget(QTangoAttributeBase):
         n = len(self.items) - 1
         c = n % self.max_col
         r = n // self.max_col
-        self.layout().addWidget(legend_item, r, c)
+        # self.layout().addWidget(legend_item, r, c)
+        self.legend_gridlayout.addWidget(legend_item, r, c)
 
     def removeItem(self, item):
         if isinstance(item, QTangoStripToolLegendItem):
@@ -289,23 +306,27 @@ class QTangoStripToolLegendWidget(QTangoAttributeBase):
 
     def set_position(self, position):
         for i in range(len(self.items)):
-            self.layout().takeAt(0)
+            self.legend_gridlayout.takeAt(0)
         self.position = position
         if position in ["bottom", "top"]:
             self.max_col = 4
-            spacer = QtWidgets.QWidget()
-            spacer.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+            lay = QtWidgets.QHBoxLayout()
+            lay.addLayout(self.legend_gridlayout)
+            spacer = QtWidgets.QSpacerItem(0, 0, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+            lay.addSpacerItem(spacer)
         else:
             self.max_col = 1
-            spacer = QtWidgets.QWidget()
-            spacer.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+            lay = QtWidgets.QVBoxLayout()
+            lay.addLayout(self.legend_gridlayout)
+            spacer = QtWidgets.QSpacerItem(0, 0, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+            lay.addSpacerItem(spacer)
         n = len(self.items) - 1
         c = n % self.max_col
         r = n // self.max_col
 
         for item in self.items.values():
-            self.layout().addWidget(item, r, c)
-        self.layout().addWidget(spacer)
+            self.legend_gridlayout.addWidget(item, r, c)
+        self.setLayout(lay)
 
 
 class QTangoStripToolPlotWidget(pg.PlotWidget, QTangoAttributeBase):
@@ -324,7 +345,7 @@ class QTangoStripToolPlotWidget(pg.PlotWidget, QTangoAttributeBase):
         self.unselected_pen_width = 1.5
         self.selected_pen_width = 3.0
 
-        self.values_size = 200000
+        self.values_size = 1000
         self.duration = 600.0
         self.x_values = list()
         self.y_values = list()
@@ -591,7 +612,7 @@ class QTangoStripToolPlotWidget(pg.PlotWidget, QTangoAttributeBase):
     def setCurveName(self, curve, name):
         self.value_trend_curves[curve].opts['name'] = name
 
-    def addPoint(self, data, curve=0):
+    def addPoint(self, data, curve_index=0, auto_range=True):
         if type(data) == pt.DeviceAttribute:
             x_new = data.time.totime()
             y_new = data.value
@@ -601,30 +622,42 @@ class QTangoStripToolPlotWidget(pg.PlotWidget, QTangoAttributeBase):
         # Check x_new against last x to see if it is increasing.
         # Sometimes there is a bug with wrong time values that are very much lower
         # than the old value (probably 0)
-        if self.current_data_index[curve] == 0:
+        current_data_index = self.current_data_index[curve_index]
+        if current_data_index == 0:
             x_old = 0.0
         else:
-            x_old = self.x_values[curve][self.current_data_index[curve]]
+            x_old = self.x_values[curve_index][current_data_index]
         if (self.chronological is False) or (x_new > x_old):
-            # Rescaling if the number of sample is too high
-            if self.current_data_index[curve] + 1 >= self.values_size:
-                self.current_data_index[curve] = int(self.values_size * 0.75)
-                self.x_values[curve][0:self.current_data_index[curve]] = self.x_values[curve][
-                                                                         self.values_size - self.current_data_index[
-                                                                          curve]:self.values_size]
-                self.y_values[curve][0:self.current_data_index[curve]] = self.y_values[curve][
-                                                                         self.values_size - self.current_data_index[
-                                                                          curve]:self.values_size]
-            elif self.current_data_index[curve] == 0:
-                self.x_values[curve][0] = x_new
-                self.y_values[curve][0] = y_new
-            self.current_data_index[curve] += 1
-            self.x_values[curve][self.current_data_index[curve]] = x_new
-            start_index = np.argmax((self.x_values[curve] - x_new) > -self.duration)
-            self.y_values[curve][self.current_data_index[curve]] = y_new
-            self.value_trend_curves[curve].setData(self.x_values[curve][start_index:self.current_data_index[curve]] - x_new,
-                                                   self.y_values[curve][start_index:self.current_data_index[curve]],
-                                                   antialias=True)
+            # Rescaling if the number of samples is too high
+            if current_data_index + 1 >= self.values_size:
+                current_data_index = int(self.values_size * 0.75)
+                self.x_values[curve_index][0:current_data_index] = self.x_values[curve_index][self.values_size -
+                                                                                              current_data_index:
+                                                                                              self.values_size]
+                self.y_values[curve_index][0:current_data_index] = self.y_values[curve_index][self.values_size -
+                                                                                              current_data_index:
+                                                                                              self.values_size]
+            elif current_data_index == 0:
+                self.x_values[curve_index][0] = x_new
+                self.y_values[curve_index][0] = y_new
+            current_data_index += 1
+            self.x_values[curve_index][current_data_index] = x_new
+            start_index = np.argmax((self.x_values[curve_index] - x_new) > -self.duration)
+            self.y_values[curve_index][self.current_data_index[curve_index]] = y_new
+            self.value_trend_curves[curve_index].setData(self.x_values[curve_index][start_index:current_data_index] - x_new,
+                                                         self.y_values[curve_index][start_index:current_data_index],
+                                                         antialias=False)
+            if auto_range:
+                vb = self.curve_vb_list[curve_index]
+                vb.enableAutoRange("y")
+                vb.autoRange()
+                if self.curve_focus == curve_index:
+                    pi = self.getPlotItem()
+                    axis_viewrange = self.curve_vb_list[curve_index].viewRange()
+                    logger.debug("Setting view range {0}".format(axis_viewrange))
+                    pi.vb.setRange(yRange=axis_viewrange[1], padding=0)
+                    pi.vb.setRange(xRange=axis_viewrange[0])
+            self.current_data_index[curve_index] = current_data_index
             self.update()
 
     def setData(self, x_data, y_data, curve_index=0, auto_range=True):
@@ -647,24 +680,102 @@ class QTangoStripToolPlotWidget(pg.PlotWidget, QTangoAttributeBase):
         self.updateViews()
 
 
+class TestStream(QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        QtWidgets.QWidget.__init__(self, parent)
+
+        self.strip_tool = QTangoStripTool("Test", legend_pos="right")
+        self.stop_button = QtWidgets.QPushButton("STOP")
+        self.stop_button.clicked.connect(self.stop)
+        self.start_button = QtWidgets.QPushButton("START")
+        self.start_button.clicked.connect(self.start)
+        l2 = QtWidgets.QHBoxLayout()
+        l2.addWidget(self.start_button)
+        l2.addWidget(self.stop_button)
+        self.stop_thread_flag = False
+        self.setLayout(QtWidgets.QVBoxLayout())
+        self.layout().addLayout(l2)
+        self.layout().addWidget(self.strip_tool)
+        self.thread_list = list()
+        self.n_points = 100
+        self.n_curves = 3
+
+        self.setup_curves()
+        st = """QPushButton {{ border-width: 2px;
+                      border-color: {1};
+                      border-style: solid; 
+                      border-radius: 0px;
+                      color: {1};}}
+                QWidget {{
+                              background-color: {0};
+                              }}""".format(QTangoColors().backgroundColor, QTangoColors().secondaryColor0)
+        self.setStyleSheet(st)
+        self.update()
+
+    def test_data_stream(self, curve_index, update_time=0.5):
+        logger.info("Thread {0} starting".format(curve_index))
+        while not self.stop_thread_flag:
+            x = time.time()
+            y = np.random.random() * (curve_index + 1) + 2 * (curve_index + 1)
+            self.strip_tool.add_point((x, y), curve_index, auto_range=False)
+            time.sleep(update_time)
+        logger.info("Thread {0} exiting".format(curve_index))
+
+    def stop(self):
+        logger.info("Stopping threads")
+        self.stop_thread_flag = True
+        for t in self.thread_list:
+            t.join(1.0)
+        # self.close()
+
+    def start(self):
+        self.stop()
+        logger.info("Starting threads")
+        self.stop_thread_flag = False
+        for c in range(self.n_curves):
+            t = threading.Thread(target=self.test_data_stream, args=(c, 0.1))
+            t.start()
+            self.thread_list.append(t)
+
+    def setup_curves(self):
+        for c in range(self.n_curves-1):
+            self.strip_tool.add_curve("Curve {0}".format(c + 1))
+
+        x0 = 0
+        for p in range(self.n_points):
+            x = x0 + p
+            for c in range(self.n_curves):
+                y = np.random.random() * (c + 1) + 2 * (c + 1)
+                self.strip_tool.add_point((x, y), c)
+        self.start()
+
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
 
-    strip_tool = QTangoStripTool("Test", legend_pos="right")
-    strip_tool.show()
-    x_data = np.linspace(-600, 0, 1000)
-    y_data = np.sin(2 * np.pi * x_data / 240.0)
-    logger.debug("Strip tool created")
-    strip_tool.set_data(x_data, y_data, 0)
+    test = "trend"
 
-    # strip_tool.add_curve("apa")
-    # strip_tool.set_data(x_data, y_data * 2, 1)
+    if test == "data":
+        strip_tool = QTangoStripTool("Test", legend_pos="right")
+        strip_tool.show()
+        logger.debug("Strip tool created")
 
-    for c in range(3):
         x_data = np.linspace(-600, 0, 1000)
-        y_data = np.sin(2*np.pi*x_data/240.0 * (c + 1)) + 10 * c
-        strip_tool.add_curve("Curve {0}".format(c + 1))
-        strip_tool.set_data(x_data, y_data, c + 1)
-        # strip_tool.curve_vb_list[c].setRange(yRange=[c-1, c+1])
+        y_data = np.sin(2 * np.pi * x_data / 240.0)
+        strip_tool.set_data(x_data, y_data, 0)
+
+        # strip_tool.add_curve("apa")
+        # strip_tool.set_data(x_data, y_data * 2, 1)
+
+        for c in range(3):
+            x_data = np.linspace(-600, 0, 1000)
+            y_data = np.sin(2*np.pi*x_data/240.0 * (c + 1)) + 10 * c
+            strip_tool.add_curve("Curve {0}".format(c + 1))
+            strip_tool.set_data(x_data, y_data, c + 1)
+            # strip_tool.curve_vb_list[c].setRange(yRange=[c-1, c+1])
+
+    elif test == "trend":
+        test_stream = TestStream()
+        test_stream.show()
 
     sys.exit(app.exec_())
