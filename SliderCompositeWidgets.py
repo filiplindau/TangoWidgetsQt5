@@ -193,10 +193,12 @@ class QTangoReadAttributeSlider(QTangoAttributeBase):
 
 
 class QTangoAttributeSlider(QTangoAttributeBase):
+    newWriteValueSignal = QtCore.pyqtSignal(np.double)
+
     def __init__(self, sizes=None, colors=None, parent=None,
                  slider_style=2, show_write_widget=False):
         QTangoAttributeBase.__init__(self, sizes, colors, parent)
-        self.newValueSignal = None
+        # self.newValueSignal = None
 
         self.nameLabel = None
         self.startLabel = None
@@ -220,9 +222,9 @@ class QTangoAttributeSlider(QTangoAttributeBase):
         if slider_style in [1, 2, 3]:
             self.setup_horizontal(slider_style, show_write_widget)
         else:
-            self.setup_vertical(slider_style)
+            self.setup_vertical(slider_style, show_write_widget)
 
-    def setup_vertical(self, slider_style=4):
+    def setup_vertical(self, slider_style=4, show_write_widget=False):
         self.nameLabel = QTangoAttributeNameLabel(self.sizes, self.attrColors)
         sizes_value = copy.copy(self.sizes)
         sizes_value.barHeight *= 1.25
@@ -237,6 +239,19 @@ class QTangoAttributeSlider(QTangoAttributeBase):
         self.writeLabel.current_attr_color = self.attrColors.backgroundColor
         self.writeLabel.setupLayout()
 
+        if show_write_widget is True:
+            logger.debug("Adding write widgets")
+            self.writeValueEdit = QTangoWriteAttributeLineEdit(self.sizes, self.attrColors)
+            self.writeValueEdit.newValueSignal.connect(self.updateWriteValue)
+            self.writeLabel.setupLayout()
+
+            layout2 = QtWidgets.QHBoxLayout()
+            margin = int(self.sizes.barHeight / 10)
+            layout2.setContentsMargins(margin, margin, margin, margin)
+            layout2.setSpacing(self.sizes.barHeight / 6.0)
+            layout2.addWidget(self.writeLabel)
+            layout2.addWidget(self.writeValueEdit)
+
         # self.unitLabel = QTangoAttributeNameLabel(self.sizes, self.attrColors)
 
         self.vSpacer = QtWidgets.QSpacerItem(20, self.sizes.barHeight, QtWidgets.QSizePolicy.Minimum,
@@ -248,6 +263,8 @@ class QTangoAttributeSlider(QTangoAttributeBase):
         self.layout.setSpacing(self.sizes.barHeight / 10)
 
         self.layout.addWidget(self.valueSlider)
+        if show_write_widget:
+            self.layout.addLayout(layout2)
         self.layout.addWidget(self.nameLabel)
         self.layout.addWidget(self.unitLabel)
 
@@ -271,7 +288,7 @@ class QTangoAttributeSlider(QTangoAttributeBase):
             self.writeLabel = QTangoStartLabel(self.sizes, self.attrColors)
             self.writeLabel.current_attr_color = self.attrColors.backgroundColor
             self.writeLabel.setupLayout()
-            self.newValueSignal = self.writeValueEdit.newValueSignal
+            # self.newValueSignal = self.writeValueEdit.newValueSignal
 
         # Select slider style:
         if slider_style == 1:
@@ -395,8 +412,10 @@ class QTangoAttributeSlider(QTangoAttributeBase):
     def updateWriteValue(self):
         logger.debug("In QTangoAttributeSlider.updateWriteValue: "
                       "updating slider to {0}".format(self.writeValueEdit.value()))
-        self.valueSlider.setWriteValue(self.writeValueEdit.value())
+        value = self.writeValueEdit.value()
+        self.valueSlider.setWriteValue(value)
         self.update()
+        self.newWriteValueSignal(value)
 
     def getWriteValue(self):
         retval = None

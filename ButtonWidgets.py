@@ -240,7 +240,7 @@ class QTangoCommandSelection(QTangoAttributeBase):
                 self.layoutButtons.itemAt(i).widget().setParent(None)
 
             # Add buttons
-        for cmdButton in self.cmdButtons.itervalues():
+        for cmdButton in self.cmdButtons.values():
             self.layoutButtons.addWidget(cmdButton)
 
         self.setMaximumWidth(self.sizes.readAttributeWidth)
@@ -255,7 +255,7 @@ class QTangoCommandSelection(QTangoAttributeBase):
             self.endLabel.setQuality(status.quality)
             self.nameLabel.setQuality(status.quality)
             self.statusLabel.setQuality(status.quality)
-            for cmdButton in self.cmdButtons.itervalues():
+            for cmdButton in self.cmdButtons.values():
                 cmdButton.setQuality(status.quality)
             status_text = str(status.value)
         else:

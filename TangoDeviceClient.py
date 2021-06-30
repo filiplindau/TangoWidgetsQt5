@@ -6,7 +6,7 @@ Created on Dec 19, 2017
 """
 from PyQt5 import QtWidgets
 import PyTango
-from BaseWidgets import QTangoColors, QTangoSizes
+from ColorDefinitions import QTangoColors, QTangoSizes
 from LayoutWidgets import QTangoTitleBar, QTangoHorizontalBar, QTangoSideBar
 from AttributeReadThreadClass import AttributeClass
 import logging
@@ -15,15 +15,38 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.CRITICAL)
 
 
+class DummyDevice:
+    def __init__(self, tango_name):
+        self.name = tango_name
+
+    def get_state(self):
+        return PyTango.DevState.UNKNOWN
+
+    def command_inout_asynch(self, *args):
+        logger.info("{0}: Dummy command {1}".format(self.name, args))
+
+    def get_attribute_config(self, name):
+        raise RuntimeError("No attribute info")
+
+    def read_attribute_asynch(self, name):
+        raise RuntimeError("No attribute")
+
+    def read_attribute_reply(self, id):
+        raise RuntimeError("No attribute id")
+
+    def write_attribute(self, name, value):
+        logger.info("{0}: Dummy write attribute {1}={2}".format(self.name, name, value))
+
+
 class TangoDeviceClient(QtWidgets.QWidget):
     def __init__(self, name, use_sidebar=False, use_bottombar=False, call_setup_layout=True, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
 
         self.name = name
 
-        self.title_sizes = None
-        self.attr_sizes = None
-        self.frame_sizes = None
+        self.title_sizes: QTangoSizes = None
+        self.attr_sizes: QTangoSizes = None
+        self.frame_sizes: QTangoSizes = None
         self.colors = QTangoColors()
         self.top_spacing = 60
 
@@ -110,6 +133,9 @@ class TangoDeviceClient(QtWidgets.QWidget):
         if defer_update is False:
             self.update()
 
+    def add_spaceritem(self, spacer_item):
+        self.layout_data.addSpacerItem(spacer_item)
+
     def add_attribute(self, attr_name, device_name, callback, update_interval=0.5, single_shot=False,
                       get_info=False, attr_info_slot=None):
         attr_dict_name = "{0}_{1}".format(attr_name, device_name)
@@ -120,8 +146,11 @@ class TangoDeviceClient(QtWidgets.QWidget):
         self.attributes[attr_dict_name] = AttributeClass(attr_name, self.devices[device_name], update_interval,
                                                          callback, get_info, attr_info_slot)
 
-    def add_device(self, device_name, tango_name):
-        self.devices[device_name] = PyTango.DeviceProxy(tango_name)
+    def add_device(self, device_name, tango_name, dummy_fallback=True):
+        try:
+            self.devices[device_name] = PyTango.DeviceProxy(tango_name)
+        except PyTango.DevFailed:
+            self.devices[device_name] = DummyDevice(tango_name)
 
     def closeEvent(self, event):
         for a in self.attributes.values():
