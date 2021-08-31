@@ -37,7 +37,7 @@ class QTangoColors(object):
         self.unknownColor = '#45616f'
         self.disableColor = '#ff00ff'
         self.movingColor = '#feff99'
-        self.runningColor = '#feff99'
+        self.runningColor = '#66cbff'
 
         self.validColor = self.secondaryColor0
         self.invalidColor = self.unknownColor

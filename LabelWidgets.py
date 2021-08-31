@@ -9,7 +9,7 @@ import numpy as np
 import PyTango as pt
 from ColorDefinitions import QTangoColors, QTangoSizes
 from BaseWidgets import QTangoAttributeBase
-from Utils import to_precision, FloatValidator
+from Utils import to_precision, FloatValidator, IntValidator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -343,6 +343,21 @@ class QTangoReadAttributeLabel(QtWidgets.QLabel, QTangoAttributeBase):
         self.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignBottom)
 
         self.validator = FloatValidator()
+        self.setDataFormat(self.data_format)
+
+    def setDataFormat(self, data_format):
+        if data_format == "int":
+            self.data_format = "%d"
+            self.validator = IntValidator()
+        elif data_format in ["double", "float"]:
+            self.data_format = "%6.3f"
+            self.validator = FloatValidator()
+        else:
+            self.data_format = data_format
+            if "f" in data_format or "e" in data_format or "g" in data_format:
+                self.validator = FloatValidator()
+            else:
+                self.validator = IntValidator()
 
     def setValue(self, value):
         if type(value) == pt.DeviceAttribute:

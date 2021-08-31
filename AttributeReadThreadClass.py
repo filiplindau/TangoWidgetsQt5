@@ -45,8 +45,11 @@ class AttributeClass(QtCore.QObject):
         self.name = name
         self.device = device
         self.interval = interval
+        self.get_info = get_info
         self.get_info_flag = get_info
         self.pause_read_flag = False
+        self.callback = slot
+        self.info_callback = attr_info_slot
 
         if slot is not None:
             self.attrSignal.connect(slot)

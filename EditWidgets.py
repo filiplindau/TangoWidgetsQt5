@@ -10,7 +10,7 @@ import numpy as np
 import re
 from BaseWidgets import QTangoAttributeBase
 from ColorDefinitions import QTangoColors, QTangoSizes
-from Utils import format_float, FloatValidator
+from Utils import format_float, FloatValidator, IntValidator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -130,8 +130,8 @@ class QTangoWriteAttributeLineEdit(QtWidgets.QLineEdit, QTangoAttributeBase):
         self.lastKey = QtCore.Qt.Key_0
 
         self.dataValue = 1.0
-        self.dataFormat = "{:.4g}"
-        self.dataFormat = "%.4g"
+        self.data_format = "{:.4f}"
+        self.data_format = "%.4f"
 
         self.setupLayout()
 
@@ -172,8 +172,24 @@ class QTangoWriteAttributeLineEdit(QtWidgets.QLineEdit, QTangoAttributeBase):
         self.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Minimum)
         self.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
 
-        self.validatorObject = QtGui.QDoubleValidator()
-        self.validatorObject.setNotation(QtGui.QDoubleValidator.ScientificNotation)
+        # self.validatorObject = QtGui.QDoubleValidator()
+        # self.validatorObject.setNotation(QtGui.QDoubleValidator.ScientificNotation)
+        self.validatorObject = FloatValidator()
+        self.setDataFormat(self.data_format)
+
+    def setDataFormat(self, data_format):
+        if data_format == "int":
+            self.data_format = "%d"
+            self.validator = IntValidator()
+        elif data_format in ["double", "float"]:
+            self.data_format = "%6.3f"
+            self.validator = FloatValidator()
+        else:
+            self.data_format = data_format
+            if "f" in data_format or "e" in data_format or "g" in data_format:
+                self.validator = FloatValidator()
+            else:
+                self.validator = IntValidator()
 
     def setColors(self, attr_color_name, background_color_name):
         background_color = self.attrColors.__getattribute__(background_color_name)
@@ -201,7 +217,7 @@ class QTangoWriteAttributeLineEdit(QtWidgets.QLineEdit, QTangoAttributeBase):
         self.setStyleSheet(s)
 
     def value(self):
-        if self.validatorObject.validate(self.text(), 0)[0] == QtGui.QValidator.Acceptable:
+        if self.validatorObject.validate(self.text(), 0) == QtGui.QValidator.Acceptable:
             return np.double(self.text())
         else:
             return self.dataValue
@@ -209,7 +225,10 @@ class QTangoWriteAttributeLineEdit(QtWidgets.QLineEdit, QTangoAttributeBase):
     def setValue(self, value):
         self.dataValue = value
         # s_val = self.dataFormat.format(value)
-        s_val = "".join(("{0:", self.dataFormat[1:], "}")).format(value)
+        try:
+            s_val = "".join(("{0:", self.data_format[1:], "}")).format(value)
+        except TypeError:
+            s_val = "{0}".format(value)
         self.setText(s_val)
 
     def keyPressEvent(self, event):
@@ -218,8 +237,11 @@ class QTangoWriteAttributeLineEdit(QtWidgets.QLineEdit, QTangoAttributeBase):
             self.lastKey = event.key()
             if event.key() == QtCore.Qt.Key_Up or event.key() == QtCore.Qt.Key_Down:
                 txt = str(self.text()).lower()
-                if self.validatorObject.validate(self.text(), 0)[0] == QtGui.QValidator.Acceptable:
-                    self.dataValue = np.double(self.text())
+                if self.validatorObject.validate(self.text(), 0) == QtGui.QValidator.Acceptable:
+                    if "d" in self.data_format:
+                        self.dataValue = np.int(self.text())
+                    else:
+                        self.dataValue = np.double(self.text())
 
                 comma_pos = txt.find('.')
                 exp_pos = txt.find('e')
@@ -263,12 +285,13 @@ class QTangoWriteAttributeLineEdit(QtWidgets.QLineEdit, QTangoAttributeBase):
                     logger.debug("In keyPressEvent: New decimal dataValue {0}".format(self.dataValue))
 
                     # txt = self.dataFormat.format(self.dataValue)
-                    txt = "".join(("{0:", self.dataFormat[1:], "}")).format(self.dataValue)
+                    txt = "".join(("{0:", self.data_format[1:], "}")).format(self.dataValue)
                     new_comma_pos = txt.find('.')
                     if new_comma_pos < 0:
                         # There is no comma (integer)
                         new_comma_pos = txt.__len__()
-                        txt += '.'
+                        if not "d" in self.data_format:
+                            txt += '.'
                     if cursor_decimal_pos < 0:
                         new_cursor_pos = new_comma_pos - cursor_decimal_pos
                     else:
@@ -294,13 +317,13 @@ class QTangoWriteAttributeLineEdit(QtWidgets.QLineEdit, QTangoAttributeBase):
 
                         logger.debug("In keyPressEvent: New decimal dataValue {0}".format(self.dataValue))
                     # txt = self.dataFormat.format(self.dataValue)
-                    txt = "".join(("{0:", self.dataFormat[1:], "}")).format(self.dataValue)
+                    txt = "".join(("{0:", self.data_format[1:], "}")).format(self.dataValue)
                     self.clear()
                     self.insert(txt)
 
             elif event.key() in [QtCore.Qt.Key_Enter, QtCore.Qt.Key_Return]:
                 logger.debug("In keyPressEvent: Enter pressed")
-                if self.validatorObject.validate(self.text(), 0)[0] == QtGui.QValidator.Acceptable:
+                if self.validatorObject.validate(self.text(), 0) == QtGui.QValidator.Acceptable:
                     self.dataValue = np.double(self.text())
                 logger.debug("In keyPressEvent: validated")
                 self.newValueSignal.emit()
@@ -313,7 +336,7 @@ class QTangoWriteAttributeLineEdit(QtWidgets.QLineEdit, QTangoAttributeBase):
                 # This is to add another zero if we press right while at the right edge of the field
                 cursor_pos = self.cursorPosition()
                 txt = str(self.text()).lower()
-                if self.validatorObject.validate(self.text(), 0)[0] == QtGui.QValidator.Acceptable:
+                if self.validatorObject.validate(self.text(), 0) == QtGui.QValidator.Acceptable:
                     self.dataValue = np.double(self.text())
                 logger.debug("In keyPressEvent: Cursor pos {0}".format(cursor_pos))
                 if cursor_pos == txt.__len__():

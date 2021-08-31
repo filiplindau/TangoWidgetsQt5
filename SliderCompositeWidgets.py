@@ -195,7 +195,7 @@ class QTangoReadAttributeSlider(QTangoAttributeBase):
 class QTangoAttributeSlider(QTangoAttributeBase):
     newWriteValueSignal = QtCore.pyqtSignal(np.double)
 
-    def __init__(self, sizes=None, colors=None, parent=None,
+    def __init__(self, name=None, sizes=None, colors=None, parent=None,
                  slider_style=2, show_write_widget=False):
         QTangoAttributeBase.__init__(self, sizes, colors, parent)
         # self.newValueSignal = None
@@ -217,6 +217,8 @@ class QTangoAttributeSlider(QTangoAttributeBase):
 
         # self.setup_horizontal(1, False)
         self.setupLayout(slider_style, show_write_widget)
+        if name is not None:
+            self.setAttributeName(name)
 
     def setupLayout(self, slider_style=2, show_write_widget=False):
         if slider_style in [1, 2, 3]:
@@ -415,7 +417,7 @@ class QTangoAttributeSlider(QTangoAttributeBase):
         value = self.writeValueEdit.value()
         self.valueSlider.setWriteValue(value)
         self.update()
-        self.newWriteValueSignal(value)
+        self.newWriteValueSignal.emit(value)
 
     def getWriteValue(self):
         retval = None
@@ -441,7 +443,7 @@ class QTangoAttributeSlider(QTangoAttributeBase):
 
         self.valueLabel.data_format = attr_info.format
         if self.is_write_widget is True:
-            self.writeValueEdit.dataFormat = attr_info.format
+            self.writeValueEdit.data_format = attr_info.format
 
 
 # noinspection PyAttributeOutsideInit

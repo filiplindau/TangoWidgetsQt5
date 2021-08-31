@@ -72,15 +72,15 @@ class AttributeEventClass(QtCore.QObject):
         try:
             self.attrInfo = self.device.get_attribute_config(self.name)
 
-        except pt.DevFailed, e:
+        except pt.DevFailed as e:
             if e[0].reason == 'API_DeviceTimeOut':
-                print 'AttrInfo Timeout'
+                print('AttrInfo Timeout')
             else:
-                print self.name, '  attrinfo error ', e[0].reason
+                print("{0} attrinfo error {1}".format(self.name, e[0].reason))
             self.attrInfo = pt.AttributeInfoEx()
             
-        except Exception, e:
-            print self.name, ' recovering from attrInfo ', str(e)
+        except Exception as e:
+            print("{0} recovering from attrInfo {1}".format(self.name, str(e)))
             self.attrInfo = pt.AttributeInfoEx()
 
         return self.attrInfo

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class QTangoDeviceStatus(QTangoAttributeBase):
-    def __init__(self, sizes=None, colors=None, parent=None):
+    def __init__(self, name=None, sizes=None, colors=None, parent=None):
         QTangoAttributeBase.__init__(self, sizes, colors, parent)
         self.startLabel = None
         self.endLabel = None
@@ -23,6 +23,8 @@ class QTangoDeviceStatus(QTangoAttributeBase):
         self.stateLabel = None
         self.statusLabel = None
         self.setupLayout()
+        if name is not None:
+            self.setAttributeName(name)
 
     def setupLayout(self):
         self.startLabel = QTangoStartLabel(self.sizes, self.attrColors)
@@ -84,15 +86,50 @@ class QTangoDeviceStatus(QTangoAttributeBase):
         self.update()
 
     def setState(self, state):
-        self.endLabel.setState(state)
-        self.startLabel.setState(state)
-        self.nameLabel.setState(state)
-        self.stateLabel.setState(state)
-        self.statusLabel.setState(state)
+        if isinstance(state, pt.DeviceAttribute):
+            st = state.value
+        else:
+            st = state
+        self.endLabel.setState(st)
+        self.startLabel.setState(st)
+        self.nameLabel.setState(st)
+        self.stateLabel.setState(st)
+        self.statusLabel.setState(st)
 
-    def setStatus(self, state, status):
-        self.setState(state)
-        self.statusLabel.setText(status)
+    # def setStatus(self, state, status):
+    #     self.setState(state)
+    #     self.statusLabel.setText(status)
+    #     self.update()
+
+    def setStatus(self, status, state=None):
+        if state is not None:
+            self.setState(state)
+            self.startLabel.setState(state)
+            self.endLabel.setState(state)
+            self.nameLabel.setState(state)
+            self.statusLabel.setState(state)
+        else:
+            if type(status) == pt.DeviceAttribute:
+                self.startLabel.setQuality(status.quality)
+                self.endLabel.setQuality(status.quality)
+                self.nameLabel.setQuality(status.quality)
+                self.statusLabel.setQuality(status.quality)
+        if type(status) == pt.DeviceAttribute:
+            status_text = str(status.value)
+        else:
+            status_text = status
+        if status_text is not None:
+            self.statusLabel.setText(status_text)
+        else:
+            self.statusLabel.setText('--')
+        self.statusLabel.repaint()
+
+    def attributeName(self):
+        return str(self.nameLabel.text())
+
+    # @QtCore.pyqtSignature('setAttributeName(QString)')
+    def setAttributeName(self, a_name):
+        self.nameLabel.setText(a_name)
         self.update()
 
 
@@ -138,7 +175,7 @@ class QTangoDeviceNameStatus(QTangoAttributeBase):
 
 # noinspection PyAttributeOutsideInit
 class QTangoReadAttributeDouble(QTangoAttributeBase):
-    def __init__(self, sizes=None, colors=None, parent=None):
+    def __init__(self, name=None, sizes=None, colors=None, parent=None):
         QTangoAttributeBase.__init__(self, sizes, colors, parent)
         self.unit = None
         self.prefixDict = {'k': 1e-3, 'M': 1e-6, 'G': 1e-9, 'T': 1e-12, 'P': 1e-15,
@@ -146,6 +183,8 @@ class QTangoReadAttributeDouble(QTangoAttributeBase):
         self.prefix = None
         self.prefixFactor = 1.0
         self.setupLayout()
+        if name is not None:
+            self.setAttributeName(name)
 
     def setupLayout(self):
         self.startLabel = QTangoStartLabel(self.sizes, self.attrColors)
@@ -190,7 +229,10 @@ class QTangoReadAttributeDouble(QTangoAttributeBase):
             val = value.value
         else:
             val = value
-        self.valueSpinbox.setValue(val * self.prefixFactor)
+        try:
+            self.valueSpinbox.setValue(val * self.prefixFactor)
+        except TypeError:
+            self.valueSpinbox.setValue(0)
         self.update()
 
     def setUnit(self, unit):
@@ -211,12 +253,78 @@ class QTangoReadAttributeDouble(QTangoAttributeBase):
             self.prefix = None
             self.prefixFactor = 1.0
 
+# noinspection PyAttributeOutsideInit
+class QTangoReadAttributeInt(QTangoAttributeBase):
+    def __init__(self, name=None, sizes=None, colors=None, parent=None):
+        QTangoAttributeBase.__init__(self, sizes, colors, parent)
+        self.unit = None
+        self.setupLayout()
+        if name is not None:
+            self.setAttributeName(name)
+
+    def setupLayout(self):
+        self.startLabel = QTangoStartLabel(self.sizes, self.attrColors)
+        self.endLabel = QTangoEndLabel(self.sizes, self.attrColors)
+        self.nameLabel = QTangoAttributeNameLabel(self.sizes, self.attrColors)
+        self.nameLabel.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.unitLabel = QTangoAttributeUnitLabel(self.sizes, self.attrColors)
+        self.valueSpinbox = QTangoReadAttributeLabel(self.sizes, self.attrColors)
+        self.unitLabel.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignBottom)
+
+        layout = QtWidgets.QHBoxLayout(self)
+        margin = int(self.sizes.barHeight / 10)
+        layout.setContentsMargins(margin, margin, margin, margin)
+
+        layout.addWidget(self.startLabel)
+        layout.addWidget(self.nameLabel)
+        layout.addWidget(self.valueSpinbox)
+        layout.addWidget(self.unitLabel)
+        layout.addWidget(self.endLabel)
+
+        self.setMaximumWidth(self.sizes.readAttributeWidth)
+        self.setMinimumWidth(self.sizes.readAttributeWidth)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
+
+    def attributeName(self):
+        return str(self.nameLabel.text())
+
+    # @QtCore.pyqtSignature('setAttributeName(QString)')
+    def setAttributeName(self, a_name, a_unit=None):
+        self.nameLabel.setText(a_name)
+        if a_unit is not None:
+            self.setUnit(a_unit)
+        self.update()
+
+    def setAttributeValue(self, value):
+        if type(value) == pt.DeviceAttribute:
+            self.startLabel.setQuality(value.quality)
+            self.endLabel.setQuality(value.quality)
+            self.unitLabel.setQuality(value.quality)
+            self.valueSpinbox.setQuality(value.quality)
+            self.nameLabel.setQuality(value.quality)
+            val = value.value
+        else:
+            val = value
+        try:
+            self.valueSpinbox.setValue(val * self.prefixFactor)
+        except TypeError:
+            self.valueSpinbox.setValue(0)
+        self.update()
+
+    def setUnit(self, unit):
+        self.unit = unit
+        if self.unit is not None:
+            unit_str = self.unit
+            self.unitLabel.setText(unit_str)
+
 
 # noinspection PyAttributeOutsideInit
 class QTangoReadAttributeBoolean(QTangoAttributeBase):
-    def __init__(self, sizes=None, colors=None, parent=None):
+    def __init__(self, name=None, sizes=None, colors=None, parent=None):
         QTangoAttributeBase.__init__(self, sizes, colors, parent)
         self.setupLayout()
+        if name is not None:
+            self.setAttributeName(name)
 
     def setupLayout(self):
         self.startLabel = QTangoStartLabel(self.sizes, self.attrColors)

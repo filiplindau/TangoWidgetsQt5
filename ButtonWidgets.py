@@ -136,6 +136,82 @@ class QTangoCommandButton(QtWidgets.QPushButton, QTangoAttributeBase):
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.setFont(font)
 
+    def setState(self, state, use_background_color=False):
+        if type(state) == pt.DeviceAttribute:
+            state_str = str(state.value)
+        else:
+            state_str = str(state)
+
+        if state_str == str(pt.DevState.OFF):
+            color = self.attrColors.offColor
+            state_string = 'OFF'
+        elif state_str == str(pt.DevState.ON):
+            color = self.attrColors.onColor
+            state_string = 'ON'
+        elif state_str == str(pt.DevState.FAULT):
+            color = self.attrColors.faultColor
+            state_string = 'FAULT'
+        elif state_str == str(pt.DevState.ALARM):
+            color = self.attrColors.alarmColor
+            state_string = 'ALARM'
+        elif state_str == str(pt.DevState.STANDBY):
+            color = self.attrColors.standbyColor
+            state_string = 'STANDBY'
+        elif state_str == str(pt.DevState.UNKNOWN):
+            color = self.attrColors.unknownColor
+            state_string = 'UNKNOWN'
+        elif state_str == str(pt.DevState.DISABLE):
+            color = self.attrColors.disableColor
+            state_string = 'DISABLE'
+        elif state_str == str(pt.DevState.MOVING):
+            color = self.attrColors.movingColor
+            state_string = 'MOVING'
+        elif state_str == str(pt.DevState.RUNNING):
+            color = self.attrColors.runningColor
+            state_string = 'RUNNING'
+        elif state_str == str(pt.AttrQuality.ATTR_WARNING):
+            color = self.attrColors.warnColor
+            state_string = 'WARNING'
+        elif state_str == str(pt.AttrQuality.ATTR_CHANGING):
+            color = self.attrColors.changingColor
+            state_string = 'CHANGING'
+        elif state_str == str(pt.AttrQuality.ATTR_ALARM):
+            color = self.attrColors.alarmColor2
+            state_string = 'ALARM'
+        elif state_str == str(pt.AttrQuality.ATTR_INVALID):
+            color = self.attrColors.invalidColor
+            state_string = 'INVALID'
+        elif state_str == str(pt.AttrQuality.ATTR_VALID):
+            color = self.attrColors.validColor
+            state_string = 'VALID'
+        else:
+            color = self.attrColors.unknownColor
+            state_string = 'UNKNOWN'
+
+        self.state = state_string
+        self.current_attr_color = color
+
+        button_height = self.sizes.barHeight * 1.75
+        s = ''.join(('QPushButton {	background-color: ', self.current_attr_color, '; \n',
+                     'color: ', self.attrColors.backgroundColor, '; \n',
+                     'min-height: ', str(int(button_height)), 'px; \n',
+                     'max-height: ', str(int(button_height)), 'px; \n',
+                     'padding-left: 5px; \n',
+                     'padding-right: 5px; \n',
+                     'border-width: 0px; \n',
+                     'border-style: solid; \n',
+                     'border-color: #339; \n',
+                     'border-radius: 0; \n',
+                     'border: 0px; \n',
+                     'text-align: right bottom;\n',
+                     'padding: 0px; \n',
+                     'margin: 0px; \n',
+                     '} \n',
+                     'QPushButton:hover{ background-color: ', self.attrColors.secondaryColor1, ';} \n',
+                     'QPushButton:hover:pressed{ background-color: ', self.attrColors.secondaryColor2, ';} \n'))
+        self.setStyleSheet(s)
+        self.update()
+
     def setQuality(self, quality):
         if type(quality) == pt.DeviceAttribute:
             state_str = str(quality.value)
@@ -249,14 +325,27 @@ class QTangoCommandSelection(QTangoAttributeBase):
 
         self.update()
 
+    def set_status(self, *args, **kwargs):
+        self.setStatus(args, kwargs)
+
     def setStatus(self, status, state=None):
-        if type(status) == pt.DeviceAttribute:
-            self.startLabel.setQuality(status.quality)
-            self.endLabel.setQuality(status.quality)
-            self.nameLabel.setQuality(status.quality)
-            self.statusLabel.setQuality(status.quality)
+        if state is not None:
+            self.setState(state)
+            self.startLabel.setState(state)
+            self.endLabel.setState(state)
+            self.nameLabel.setState(state)
+            self.statusLabel.setState(state)
             for cmdButton in self.cmdButtons.values():
-                cmdButton.setQuality(status.quality)
+                cmdButton.setState(state)
+        else:
+            if type(status) == pt.DeviceAttribute:
+                self.startLabel.setQuality(status.quality)
+                self.endLabel.setQuality(status.quality)
+                self.nameLabel.setQuality(status.quality)
+                self.statusLabel.setQuality(status.quality)
+                for cmdButton in self.cmdButtons.values():
+                    cmdButton.setQuality(status.quality)
+        if type(status) == pt.DeviceAttribute:
             status_text = str(status.value)
         else:
             status_text = status
@@ -271,6 +360,14 @@ class QTangoCommandSelection(QTangoAttributeBase):
         self.cmdButtons[name] = cmd_button
 
         self.setupLayout()
+
+    def setButtonText(self, button_name, new_text):
+        try:
+            b = self.cmdButtons[button_name]
+            b.setText(new_text)
+        except KeyError:
+            logger.error("No button named {0}. Only {1}".format())
+            return
 
 
 # noinspection PyAttributeOutsideInit

@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 # whole coefficient, the decimal part of the coefficient, and the exponent
 # part.
 _float_re = re.compile(r'(([+-]?\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?)')
+_int_re = re.compile(r'([+-]?\d*)')
+
+
+def valid_float_string(string):
+    match = _float_re.search(string)
+    return match.groups()[0] == string if match else False
 
 
 def valid_float_string(string):
@@ -33,6 +39,20 @@ class FloatValidator(QtGui.QValidator):
 
     def fixup(self, text):
         match = _float_re.search(text)
+        return match.groups()[0] if match else ""
+
+
+class IntValidator(QtGui.QValidator):
+    def validate(self, string, position):
+        string = str(string)
+        try:
+            int(string)
+        except ValueError:
+            return self.Invalid
+        return self.Acceptable
+
+    def fixup(self, text):
+        match = _int_re.search(text)
         return match.groups()[0] if match else ""
 
 

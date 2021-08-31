@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # noinspection PyAttributeOutsideInit
 class QTangoWriteAttributeDouble(QTangoAttributeBase):
-    def __init__(self, sizes=None, colors=None, precision=4, parent=None):
+    def __init__(self, name=None, sizes=None, colors=None, precision=4, parent=None):
         QTangoAttributeBase.__init__(self, sizes, colors, parent)
 
         self.writeValueInitialized = False
@@ -26,6 +26,8 @@ class QTangoWriteAttributeDouble(QTangoAttributeBase):
         self.prefix = None
 
         self.setupLayout()
+        if name is not None:
+            self.setAttributeName(name)
 
     def setupLayout(self):
         self.startLabel = QTangoStartLabel(self.sizes, self.attrColors)
