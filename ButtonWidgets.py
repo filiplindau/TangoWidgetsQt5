@@ -169,6 +169,12 @@ class QTangoCommandButton(QtWidgets.QPushButton, QTangoAttributeBase):
         elif state_str == str(pt.DevState.RUNNING):
             color = self.attrColors.runningColor
             state_string = 'RUNNING'
+        elif state_str == str(pt.DevState.OPEN):
+            color = self.attrColors.openColor
+            state_string = 'OPEN'
+        elif state_str == str(pt.DevState.CLOSE):
+            color = self.attrColors.closeColor
+            state_string = 'CLOSE'
         elif state_str == str(pt.AttrQuality.ATTR_WARNING):
             color = self.attrColors.warnColor
             state_string = 'WARNING'

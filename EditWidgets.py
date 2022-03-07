@@ -334,24 +334,26 @@ class QTangoWriteAttributeLineEdit(QtWidgets.QLineEdit, QTangoAttributeBase):
 
             elif event.key() in [QtCore.Qt.Key_Right]:
                 # This is to add another zero if we press right while at the right edge of the field
-                cursor_pos = self.cursorPosition()
-                txt = str(self.text()).lower()
-                if self.validatorObject.validate(self.text(), 0) == QtGui.QValidator.Acceptable:
-                    self.dataValue = np.double(self.text())
-                logger.debug("In keyPressEvent: Cursor pos {0}".format(cursor_pos))
-                if cursor_pos == txt.__len__():
-                    # We are at the right edge so add a zero if it is a decimal number
-                    comma_pos = txt.find('.')
-                    exp_pos = txt.find('e')
-                    if exp_pos < 0:
-                        # There is no exponent, so ok to add zero
-                        if comma_pos < 0:
-                            # Compensate if there is no comma
-                            txt += '.'
-                            comma_pos = txt.__len__()
-                        txt += '0'
-                        self.clear()
-                        self.insert(txt)
+                if not "d" in self.data_format:
+
+                    cursor_pos = self.cursorPosition()
+                    txt = str(self.text()).lower()
+                    if self.validatorObject.validate(self.text(), 0) == QtGui.QValidator.Acceptable:
+                        self.dataValue = np.double(self.text())
+                    logger.debug("In keyPressEvent: Cursor pos {0}".format(cursor_pos))
+                    if cursor_pos == txt.__len__():
+                        # We are at the right edge so add a zero if it is a decimal number
+                        comma_pos = txt.find('.')
+                        exp_pos = txt.find('e')
+                        if exp_pos < 0:
+                            # There is no exponent, so ok to add zero
+                            if comma_pos < 0:
+                                # Compensate if there is no comma
+                                txt += '.'
+                                comma_pos = txt.__len__()
+                            txt += '0'
+                            self.clear()
+                            self.insert(txt)
                 else:
                     # We were not at the right edge, so process normally
                     super(QTangoWriteAttributeLineEdit, self).keyPressEvent(event)

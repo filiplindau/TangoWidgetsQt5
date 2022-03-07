@@ -38,6 +38,8 @@ class QTangoColors(object):
         self.disableColor = '#ff00ff'
         self.movingColor = '#feff99'
         self.runningColor = '#66cbff'
+        self.closeColor = self.offColor
+        self.openColor = self.runningColor
 
         self.validColor = self.secondaryColor0
         self.invalidColor = self.unknownColor

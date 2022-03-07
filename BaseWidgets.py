@@ -79,6 +79,12 @@ class QTangoAttributeBase(QtWidgets.QWidget):
         elif state_str == str(pt.DevState.RUNNING):
             color = self.attrColors.runningColor
             state_string = 'RUNNING'
+        elif state_str == str(pt.DevState.OPEN):
+            color = self.attrColors.openColor
+            state_string = 'OPEN'
+        elif state_str == str(pt.DevState.CLOSE):
+            color = self.attrColors.closeColor
+            state_string = 'CLOSE'
         elif state_str == str(pt.AttrQuality.ATTR_WARNING):
             color = self.attrColors.warnColor
             state_string = 'WARNING'
@@ -675,6 +681,7 @@ class QTangoVSliderBase2(QtWidgets.QSlider, QTangoAttributeBase):
         QTangoAttributeBase.__init__(self, sizes, colors, parent)
         QtWidgets.QSlider.__init__(self, parent)
         self.unit = ""
+        self.data_format = "f"
         self.setupLayout()
 
     def setupLayout(self):
@@ -712,7 +719,10 @@ class QTangoVSliderBase2(QtWidgets.QSlider, QTangoAttributeBase):
         # s_val = "{0:.4g} {1}{2}".format(self.attrValue, self.prefix, self.unit)
         # s_min = "{:.4g}".format(self.attrMinimum)
         # s_max = "{:.4g}".format(self.attrMaximum)
-        s_val = u"{0}{1}".format(to_precision2(self.attrValue, p=2, w=5, neg_compensation=False), self.unit)
+        if self.data_format == "d":
+            s_val = u"{0}{1}".format(to_precision2(self.attrValue, p=2, w=5, neg_compensation=False, floating_point=False), self.unit)
+        else:
+            s_val = u"{0}{1}".format(to_precision2(self.attrValue, p=2, w=5, neg_compensation=False), self.unit)
         s_min = "{0}".format(to_precision2(self.attrMinimum, p=0, w=4, neg_compensation=False, return_prefix_string=True))
         s_max = "{0}".format(to_precision2(self.attrMaximum, p=0, w=4, neg_compensation=False, return_prefix_string=True))
 

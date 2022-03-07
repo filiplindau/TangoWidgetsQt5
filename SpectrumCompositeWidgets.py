@@ -194,9 +194,11 @@ class QTangoReadAttributeTrend(QTangoAttributeBase):
 
 # noinspection PyAttributeOutsideInit
 class QTangoReadAttributeSpectrum(QTangoAttributeBase):
-    def __init__(self, sizes=None, colors=None, parent=None):
+    def __init__(self, name=None, sizes=None, colors=None, parent=None):
         QTangoAttributeBase.__init__(self, sizes, colors, parent)
         self.setupLayout()
+        if name is not None:
+            self.setAttributeName(name)
 
     def setupLayout(self):
         self.startLabel = QTangoStartLabel(self.sizes, self.attrColors)

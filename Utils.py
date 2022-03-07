@@ -125,16 +125,30 @@ def to_precision(x, p):
     return s
 
 
-def to_precision2(x, p=-1, w=-1, neg_compensation=False, return_prefix_string=True):
+def to_precision2(x, p=-1, w=-1, neg_compensation=False, return_prefix_string=True, floating_point=True):
     """
     returns a string representation of x formatted with a precision of p OR width w
 
     """
     prefix_dict = {12: "T", 9: "G", 6: "M", 3: "k", 0: "", -3: "m", -6: "\u00b5", -9: "n", -12: "p", -15: "f", -18: "a"}
     out = []
-    x = float(x)
+    if p > 0:
+        if p > w - 3:
+            p = w - 3
+    elif w > 3:
+        p = w - 4
+    else:
+        p = 0
+        w = 4
+
     if np.isnan(x):
         return " " * (w-2) + "--"
+
+    if floating_point:
+        x = float(x)
+    else:
+        x = int(x)
+        p = 0
 
     s_neg = ""
     if x < 0:
@@ -146,29 +160,37 @@ def to_precision2(x, p=-1, w=-1, neg_compensation=False, return_prefix_string=Tr
         else:
             s_neg = ""
 
-    if x == 0.0:
+    if x == 0:
         prefix = 0
-    elif x < 1.0:
-        prefix = int((np.log10(x) - 0.5) // 3)
+    elif x < 1:
+        try:
+            prefix = int((np.log10(x) - 0.5) // 3)
+        except ValueError:
+            prefix = 0
     else:
-        prefix = int((np.log10(x)) // 3)
+        try:
+            prefix = int(np.log10(x) // 3)
+        except ValueError:
+            prefix = 0
 
-    if p > 0:
-        if p > w - 3:
-            p = w - 3
-    elif w > 3:
-        p = w - 4
-    else:
-        p = 0
-        w = 4
+    if prefix > 0:
+        p0 = p
+        try:
+            p = w - int(np.log10(x) - 3 * prefix)
+        except ValueError:
+            p = 0
 
-    s_val = "{0:.{p}f} ".format(x * 10**(-prefix*3), p=p)
+    s_val = "{0:.{p}f} ".format(x * 10 ** (-prefix * 3), p=p)
     out.append(s_val)
     if return_prefix_string:
-        out.append(prefix_dict[prefix*3])
-        # if prefix != 0:
-        #     w -= 1
-        s_prefix = prefix_dict[prefix*3]
+        try:
+            out.append(prefix_dict[prefix*3])
+            # if prefix != 0:
+            #     w -= 1
+            s_prefix = prefix_dict[prefix*3]
+        except KeyError:
+            out.append("1e{0} x".format(prefix * 3))
+            s_prefix = "1e{0} x".format(prefix * 3)
     else:
         s_prefix = ""
 
