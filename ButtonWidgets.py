@@ -269,9 +269,12 @@ class QTangoCommandButton(QtWidgets.QPushButton, QTangoAttributeBase):
 
 # noinspection PyAttributeOutsideInit
 class QTangoCommandSelection(QTangoAttributeBase):
-    def __init__(self, title, sizes=None, colors=None, parent=None):
+    def __init__(self, title, sizes=None, colors=None, parent=None, multiline_status=False):
         QTangoAttributeBase.__init__(self, sizes, colors, parent)
         self.cmdButtons = OrderedDict()
+        self.button_pos = OrderedDict()
+        self.button_columns = None
+        self.multline_status = multiline_status
         self.title = title
         self.layout = None
         self.setupLayout()
@@ -280,15 +283,33 @@ class QTangoCommandSelection(QTangoAttributeBase):
         # Init layouts once
         if self.layout is None:
             self.startLabel = QTangoStartLabel(self.sizes, self.attrColors)
+            self.startLabel.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Expanding)
             self.endLabel = QTangoEndLabel(self.sizes, self.attrColors)
+            self.endLabel.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Expanding)
             self.nameLabel = QTangoAttributeNameLabel(self.sizes, self.attrColors)
             self.nameLabel.setText(self.title)
-            self.nameLabel.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+            # self.nameLabel.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+            self.nameLabel.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
             self.nameLabel.setMinimumWidth(0)
+            self.nameLabel.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Expanding)
             self.statusLabel = QTangoAttributeNameLabel(self.sizes, self.attrColors)
-            self.statusLabel.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed)
-            self.statusLabel.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+            if self.multline_status:
+                self.statusLabel.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Expanding)
+                self.statusLabel.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTop)
+                s = ''.join(('QLabel {min-height: ', str(self.sizes.barHeight), 'px; \n',
+                             'background-color: ', self.attrColors.backgroundColor, '; \n',
+                             'color: ', self.current_attr_color, ';}'))
+                self.statusLabel.setStyleSheet(s)
+                self.nameLabel.setStyleSheet(s)
+                font = self.font()
+                font.setPointSize(int(self.sizes.barHeight * 0.5))
+                font.setStyleStrategy(QtGui.QFont.PreferAntialias)
+                self.statusLabel.setFont(font)
+            else:
+                self.statusLabel.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed)
+                self.statusLabel.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTop)
             self.statusLabel.setText('')
+            self.statusLabel.setWordWrap(True)
 
             self.layout = QtWidgets.QHBoxLayout(self)
             self.layout.setContentsMargins(0, 0, 0, 0)
@@ -305,7 +326,8 @@ class QTangoCommandSelection(QTangoAttributeBase):
             self.layoutInfo.setSpacing(int(self.sizes.barWidth / 6))
             self.layoutInfo.addWidget(self.nameLabel)
             self.layoutInfo.addWidget(self.statusLabel)
-            self.layoutButtons = QtWidgets.QHBoxLayout()
+            # self.layoutButtons = QtWidgets.QHBoxLayout()
+            self.layoutButtons = QtWidgets.QGridLayout()
             self.layoutButtons.setContentsMargins(0, 0, 0, 0)
             self.layoutButtons.setContentsMargins(0, 0, 0, 0)
             self.layoutButtons.setSpacing(int(self.sizes.barHeight / 3))
@@ -321,15 +343,48 @@ class QTangoCommandSelection(QTangoAttributeBase):
             for i in reversed(range(self.layoutButtons.count())):
                 self.layoutButtons.itemAt(i).widget().setParent(None)
 
-            # Add buttons
-        for cmdButton in self.cmdButtons.values():
-            self.layoutButtons.addWidget(cmdButton)
+        # Add buttons
+        if self.button_columns is None:
+            try:
+                n_col = max(self.button_pos.values()) + 1
+            except ValueError:
+                n_col = 1
+        else:
+            n_col = self.button_columns
+
+        for c in range(n_col):
+            self.layoutButtons.setColumnStretch(c, 1)
+
+        for name, cmdButton in self.cmdButtons.items():
+            r = self.button_pos[name] // n_col
+            c = self.button_pos[name] % n_col
+            # print("Adding button {0}, pos {1} at r={2} c={3}\nn_col={4} but_col={5}".format(name, self.button_pos[name],
+            #                                                                                 r, c, n_col,
+            #                                                                                 self.button_columns))
+            self.layoutButtons.addWidget(cmdButton, r, c)
+            # self.layoutButtons.addWidget(cmdButton)
 
         self.setMaximumWidth(self.sizes.readAttributeWidth)
         self.setMinimumWidth(self.sizes.readAttributeWidth)
         self.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
 
         self.update()
+
+    def set_button_columns(self, columns):
+        self.button_columns = columns
+        self.setupLayout()
+
+    def setState(self, state):
+        if isinstance(state, pt.DeviceAttribute):
+            st = state.value
+        else:
+            st = state
+        self.startLabel.setState(st)
+        self.endLabel.setState(st)
+        self.nameLabel.setState(st)
+        self.statusLabel.setState(st)
+        for cmdButton in self.cmdButtons.values():
+            cmdButton.setState(st)
 
     def set_status(self, *args, **kwargs):
         self.setStatus(args, kwargs)
@@ -361,9 +416,23 @@ class QTangoCommandSelection(QTangoAttributeBase):
             self.statusLabel.setText('--')
         self.statusLabel.repaint()
 
-    def addCmdButton(self, name, slot):
+    def statusText(self):
+        return str(self.statusLabel.text())
+
+    # @QtCore.pyqtSignature('setAttributeName(QString)')
+    def setStatusText(self, a_name):
+        self.statusLabel.setText(a_name)
+        self.update()
+
+    def addCmdButton(self, name, slot, pos=None):
         cmd_button = QTangoCommandButton(name, slot, self.sizes, self.attrColors)
         self.cmdButtons[name] = cmd_button
+        if pos is None:
+            try:
+                pos = max(self.button_pos.values()) + 1
+            except ValueError:
+                pos = 0
+        self.button_pos[name] = pos
 
         self.setupLayout()
 

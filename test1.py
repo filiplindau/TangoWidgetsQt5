@@ -3,6 +3,8 @@ import sys
 from LabelWidgets import QTangoAttributeNameLabel
 from SliderCompositeWidgets import QTangoAttributeSlider
 from EditCompositeWidgets import QTangoWriteAttributeDouble
+from LabelCompositeWidgets import QTangoDeviceStatus
+from ButtonWidgets import QTangoCommandSelection
 from TangoDeviceClient import TangoDeviceClient
 from ColorDefinitions import QTangoSizes, QTangoColors
 import logging
@@ -49,8 +51,16 @@ class TestDeviceClient(TangoDeviceClient):
         self.slider2.newWriteValueSignal.connect(self.write_pos)
         self.slider2.writeValueEdit.setDataFormat("%d")
         self.slider2.valueSlider.data_format = "d"
+
+        self.status_widget = QTangoDeviceStatus("Status", self.attr_sizes, self.colors)
+        self.button_widget = QTangoCommandSelection("Cmd", self.attr_sizes, self.colors)
+
         self.add_widget(self.slider)
         self.add_widget(self.slider2)
+        self.add_widget(self.status_widget)
+        self.add_widget(self.button_widget)
+        self.status_widget.setStatusText("jkhsfjhkgfssjhfgsgfhj\nsadkjhdshj\nsfdfdsdf\n\nsfdfsdfdfs\n----------")
+        self.button_widget.setStatusText("gfdlkjfgdlgkfdjfgkldj\nefwjkhdfs8934473489")
 
     def write_power(self):
         new_value = self.slider.getWriteValue()
